@@ -175,36 +175,21 @@ export default function AdminDashboard() {
             <span>{new Date(report.createdAt).toLocaleDateString()}</span>
           </div>
 
-          {/* Action buttons */}
+          {/* Status dropdown and action buttons */}
           <div className="flex gap-2 mt-3">
-            {status === "submitted" && (
-              <motion.button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  updateReportStatus(report._id, "In Progress")
-                }}
-                className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/40 rounded text-xs hover:bg-blue-500/30 transition-colors flex items-center gap-1"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Play size={12} />
-                Start
-              </motion.button>
-            )}
-            {status === "inProgress" && (
-              <motion.button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  updateReportStatus(report._id, "Resolved")
-                }}
-                className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded text-xs hover:bg-emerald-500/30 transition-colors flex items-center gap-1"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <CheckCircle size={12} />
-                Resolve
-              </motion.button>
-            )}
+            <select
+              value={report.status}
+              onChange={(e) => {
+                e.stopPropagation()
+                updateReportStatus(report._id, e.target.value)
+              }}
+              className="px-2 py-1 bg-slate-700/50 border border-gray-600 rounded text-xs focus:border-teal-500 focus:outline-none transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="Submitted">Submitted</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Resolved">Resolved</option>
+            </select>
             <motion.button
               onClick={(e) => {
                 e.stopPropagation()
@@ -246,9 +231,9 @@ export default function AdminDashboard() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
           />
-          <div className="flex items-center space-x-4 relative z-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 relative z-10">
             <Filter className="text-teal-400" size={20} />
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 w-full sm:w-auto">
               <select
                 value={filters.dateRange}
                 onChange={(e) => setFilters((prev) => ({ ...prev, dateRange: e.target.value }))}
@@ -285,7 +270,7 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* Enhanced Kanban Board */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
           {/* Submitted Column */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}

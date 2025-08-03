@@ -17,6 +17,13 @@ export async function GET() {
     const resolved = reports.filter(r => r.status === 'Resolved').length
     const resolutionRate = totalReports > 0 ? Math.round((resolved / totalReports) * 100) : 0
 
+    // Status distribution for pie chart
+    const statusDistribution = [
+      { name: 'Submitted', value: submitted, color: '#fbbf24' },
+      { name: 'In Progress', value: inProgress, color: '#3b82f6' },
+      { name: 'Resolved', value: resolved, color: '#10b981' }
+    ]
+
     // Calculate average response time (simplified - using days since creation for resolved reports)
     const resolvedReports = reports.filter(r => r.status === 'Resolved')
     const avgResponseTime = resolvedReports.length > 0 
@@ -154,6 +161,7 @@ export async function GET() {
       },
       reportsByType: reportsByTypeArray,
       reportsByArea: reportsByAreaArray,
+      statusDistribution,
       timelineData,
       topAreas: {
         cleanest: cleanestAreas,

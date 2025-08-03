@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
 import { BarChart3, PieChart, TrendingUp, Trophy, MapPin } from "lucide-react"
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 
 interface AnalyticsData {
   metrics: {
@@ -116,6 +117,13 @@ export default function AnalyticsPage() {
     ? Math.max(...analyticsData.reportsByType.map((item) => item.count))
     : 0
 
+  // Prepare data for status pie chart
+  const statusData = analyticsData.statusDistribution || [
+    { name: 'Submitted', value: 0, color: '#fbbf24' },
+    { name: 'In Progress', value: 0, color: '#3b82f6' },
+    { name: 'Resolved', value: 0, color: '#10b981' }
+  ]
+
   return (
     <div className="pt-24 pb-16">
       <div className="container mx-auto px-4">
@@ -131,7 +139,7 @@ export default function AnalyticsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8"
         >
           {[
             { label: "Total Reports", value: analyticsData.metrics.totalReports.toLocaleString(), icon: BarChart3, color: "text-teal-400" },
@@ -159,7 +167,7 @@ export default function AnalyticsPage() {
           })}
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           {/* Reports by Type Chart */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -194,6 +202,48 @@ export default function AnalyticsPage() {
                   </div>
                 </motion.div>
               ))}
+            </div>
+          </motion.div>
+
+          {/* Status Distribution Pie Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-teal-500/20"
+          >
+            <h2 className="text-2xl font-bold mb-6 text-teal-400 flex items-center">
+              <PieChart className="mr-2" size={24} />
+              Status Distribution
+            </h2>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      border: '1px solid #475569',
+                      borderRadius: '8px',
+                      color: '#f1f5f9'
+                    }}
+                  />
+                  <Legend />
+                </RechartsPieChart>
+              </ResponsiveContainer>
             </div>
           </motion.div>
 
@@ -271,7 +321,7 @@ export default function AnalyticsPage() {
         </motion.div>
 
         {/* Leaderboards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {/* Top Cleanest Areas */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}

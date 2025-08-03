@@ -280,7 +280,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                   <p className="text-xs text-gray-500 mt-2">Save this ID to track your report</p>
                 </motion.div>
 
-                <div className="flex gap-3 relative z-10">
+                <div className="flex flex-col sm:flex-row gap-3 relative z-10">
                   <motion.button
                     onClick={resetForm}
                     className="flex-1 bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-3 rounded-lg font-semibold"
@@ -324,7 +324,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
               />
 
               <div className="relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-6">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -364,7 +364,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                   transition={{ delay: 0.5 }}
                 >
                   <label className="block text-sm font-medium text-gray-300 mb-2">Location *</label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       required
@@ -376,7 +376,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                     <motion.button
                       type="button"
                       onClick={getLocation}
-                      className="px-4 py-3 bg-teal-500/20 border border-teal-500/40 rounded-lg hover:bg-teal-500/30 transition-colors"
+                      className="px-4 py-3 bg-teal-500/20 border border-teal-500/40 rounded-lg hover:bg-teal-500/30 transition-colors flex items-center justify-center"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -455,7 +455,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                 <motion.button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 px-8 py-4 rounded-lg font-semibold shadow-lg shadow-teal-500/25 transition-all duration-300 disabled:opacity-50 relative overflow-hidden"
+                  className="w-full bg-gradient-to-r from-blue-500 via-teal-500 to-emerald-500 hover:from-blue-600 hover:via-teal-600 hover:to-emerald-600 px-8 py-4 rounded-lg font-semibold shadow-lg shadow-teal-500/25 transition-all duration-300 disabled:opacity-50 relative overflow-hidden transform hover:scale-105 hover:shadow-xl hover:shadow-teal-500/40"
                   whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
                   whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
                   initial={{ opacity: 0, y: 20 }}
