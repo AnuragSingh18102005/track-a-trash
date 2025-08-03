@@ -124,6 +124,9 @@ export default function AnalyticsPage() {
     { name: 'Resolved', value: 0, color: '#10b981' }
   ]
 
+  // Filter out zero values to prevent chart issues
+  const filteredStatusData = statusData.filter(item => item.value > 0)
+
   return (
     <div className="pt-24 pb-16">
       <div className="container mx-auto px-4">
@@ -217,19 +220,33 @@ export default function AnalyticsPage() {
               Status Distribution
             </h2>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              {filteredStatusData.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-gray-400 text-lg mb-2">No Status Data</div>
+                    <div className="text-gray-500 text-sm">Submit reports to see status distribution</div>
+                  </div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
                 <RechartsPieChart>
                   <Pie
-                    data={statusData}
+                    data={filteredStatusData.length > 0 ? filteredStatusData : [{ name: 'No Data', value: 1, color: '#6b7280' }]}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent, value }) => {
+                      // Only show labels for segments with significant values (>5%)
+                      if (percent > 0.05 && name !== 'No Data') {
+                        return `${name} ${(percent * 100).toFixed(0)}%`
+                      }
+                      return null
+                    }}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {statusData.map((entry, index) => (
+                    {(filteredStatusData.length > 0 ? filteredStatusData : [{ name: 'No Data', value: 1, color: '#6b7280' }]).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -244,6 +261,7 @@ export default function AnalyticsPage() {
                   <Legend />
                 </RechartsPieChart>
               </ResponsiveContainer>
+              )}
             </div>
           </motion.div>
 
