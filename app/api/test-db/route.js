@@ -1,31 +1,30 @@
 import { NextResponse } from 'next/server'
-import clientPromise from '@/lib/mongodb'
+import clientPromise from '../../../lib/mongodb'
 
 export async function GET() {
   try {
-    // Connect to MongoDB
     const client = await clientPromise
+    const db = client.db()
     
-    // Get the list of databases
-    const adminDb = client.db('admin')
-    const dbList = await adminDb.admin().listDatabases()
-    
-    // Extract database names
-    const databases = dbList.databases.map(db => db.name)
+    // Test the connection by listing collections
+    const collections = await db.listCollections().toArray()
     
     return NextResponse.json({
       success: true,
-      databases: databases,
-      message: 'Database connection successful'
+      message: 'MongoDB connection successful',
+      collections: collections.map(col => col.name),
+      uri: process.env.MONGODB_URI ? 
+        process.env.MONGODB_URI.substring(0, 20) + '...' : 
+        'MONGODB_URI not found'
     })
-    
   } catch (error) {
-    console.error('Database connection error:', error)
-    
+    console.error('MongoDB connection error:', error)
     return NextResponse.json({
       success: false,
       error: error.message,
-      message: 'Failed to connect to database'
+      uri: process.env.MONGODB_URI ? 
+        process.env.MONGODB_URI.substring(0, 20) + '...' : 
+        'MONGODB_URI not found'
     }, { status: 500 })
   }
 }
