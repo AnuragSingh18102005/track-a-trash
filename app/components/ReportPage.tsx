@@ -4,7 +4,7 @@ import type React from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useState, useEffect } from "react"
 import { MapPin, Camera, CheckCircle, Search, Loader2, Globe } from "lucide-react"
-import GooglePlacesAutocomplete from "./GooglePlacesAutocomplete"
+import LocationSearch from "./LocationSearch"
 
 interface ReportPageProps {
   onNavigate?: (page: string) => void
@@ -63,65 +63,11 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
   const [showConfetti, setShowConfetti] = useState(false)
   
   // Location search states
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<any[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [showSearchResults, setShowSearchResults] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<any>(null)
-  const [useGooglePlaces, setUseGooglePlaces] = useState(false)
 
   const issueTypes = ["Overflowing Bin", "Illegal Dumping", "Recycling Request", "Broken Equipment", "Other"]
 
-  // Location search function using Nominatim API
-  const searchLocation = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([])
-      setShowSearchResults(false)
-      return
-    }
 
-    setIsSearching(true)
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1&countrycodes=in`
-      )
-      const data = await response.json()
-      setSearchResults(data)
-      setShowSearchResults(true)
-    } catch (error) {
-      console.error('Error searching location:', error)
-      setSearchResults([])
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  // Debounced search effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchLocation(searchQuery)
-      } else {
-        setSearchResults([])
-        setShowSearchResults(false)
-      }
-    }, 500)
-
-    return () => clearTimeout(timeoutId)
-  }, [searchQuery])
-
-  // Close search results when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element
-      if (!target.closest('.location-search-container')) {
-        setShowSearchResults(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const handleLocationSelect = (location: any) => {
     setSelectedLocation(location)
@@ -129,27 +75,9 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
       ...prev,
       location: location.display_name
     }))
-    setSearchQuery(location.display_name)
-    setShowSearchResults(false)
   }
 
-  const handleGooglePlaceSelect = (place: any) => {
-    if (place.geometry && place.geometry.location) {
-      const location = {
-        display_name: place.formatted_address || place.name || 'Unknown Location',
-        lat: place.geometry.location.lat().toString(),
-        lon: place.geometry.location.lng().toString()
-      }
-      
-      setSelectedLocation(location)
-      setFormData(prev => ({
-        ...prev,
-        location: location.display_name
-      }))
-      setSearchQuery(location.display_name)
-      setUseGooglePlaces(false)
-    }
-  }
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -303,14 +231,12 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
               ...prev,
               location: data.display_name
             }))
-            setSearchQuery(data.display_name)
           } else {
             // Fallback to coordinates if reverse geocoding fails
             setFormData(prev => ({
               ...prev,
               location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
             }))
-            setSearchQuery(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`)
           }
         } catch (geocodeError) {
           console.error('Error reverse geocoding:', geocodeError)
@@ -319,7 +245,6 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
             ...prev,
             location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
           }))
-          setSearchQuery(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`)
         }
       } catch (error) {
         console.error('Error getting location:', error)
@@ -339,11 +264,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
       description: "",
       photo: null,
     })
-    setSearchQuery("")
-    setSearchResults([])
-    setShowSearchResults(false)
     setSelectedLocation(null)
-    setUseGooglePlaces(false)
     setShowSuccess(false)
     setShowConfetti(false)
   }
@@ -529,66 +450,14 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                 >
                   <label className="block text-sm font-medium text-gray-300 mb-2">Location *</label>
                   <div className="relative location-search-container">
-                    {/* Search Method Toggle */}
-                    <div className="flex gap-2 mb-3">
-                      <motion.button
-                        type="button"
-                        onClick={() => setUseGooglePlaces(false)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          !useGooglePlaces 
-                            ? 'bg-teal-500/20 text-teal-400 border border-teal-500/40' 
-                            : 'bg-slate-700/50 text-gray-400 border border-gray-600'
-                        }`}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Search size={14} className="inline mr-1" />
-                        Nominatim
-                      </motion.button>
-                      <motion.button
-                        type="button"
-                        onClick={() => setUseGooglePlaces(true)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          useGooglePlaces 
-                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40' 
-                            : 'bg-slate-700/50 text-gray-400 border border-gray-600'
-                        }`}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Globe size={14} className="inline mr-1" />
-                        Google Places
-                      </motion.button>
-                    </div>
-
                     <div className="flex flex-col sm:flex-row gap-2">
-                      {useGooglePlaces ? (
-                        <div className="flex-1">
-                          <GooglePlacesAutocomplete
-                            onPlaceSelect={handleGooglePlaceSelect}
-                            placeholder="Search with Google Places (e.g., Sharda University, Greater Noida)"
-                            className="w-full"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex-1 relative">
-                          <input
-                            type="text"
-                            required
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full px-4 py-3 pl-10 bg-slate-700/50 border border-gray-600 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
-                            placeholder="Search for a location (e.g., Sector 51, Green Park)"
-                          />
-                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                            {isSearching ? (
-                              <Loader2 size={16} className="text-gray-400 animate-spin" />
-                            ) : (
-                              <Search size={16} className="text-gray-400" />
-                            )}
-                          </div>
-                        </div>
-                      )}
+                      <div className="flex-1">
+                        <LocationSearch
+                          onLocationSelect={handleLocationSelect}
+                          placeholder="Search for any location (e.g., Sharda University, Sector 51, MG Road)"
+                          className="w-full"
+                        />
+                      </div>
                       <motion.button
                         type="button"
                         onClick={getLocation}
@@ -600,26 +469,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                       </motion.button>
                     </div>
                     
-                    {/* Search Results Dropdown */}
-                    {showSearchResults && searchResults.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="absolute z-10 w-full mt-2 bg-slate-800/95 backdrop-blur-lg border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                      >
-                        {searchResults.map((result, index) => (
-                          <motion.button
-                            key={index}
-                            onClick={() => handleLocationSelect(result)}
-                            className="w-full px-4 py-3 text-left hover:bg-slate-700/50 transition-colors border-b border-gray-700/50 last:border-b-0"
-                            whileHover={{ backgroundColor: 'rgba(51, 65, 85, 0.5)' }}
-                          >
-                            <div className="text-white font-medium text-sm">{result.display_name.split(',')[0]}</div>
-                            <div className="text-gray-400 text-xs mt-1">{result.display_name}</div>
-                          </motion.button>
-                        ))}
-                      </motion.div>
-                    )}
+                    
                   </div>
                   
                   {/* Selected Location Display */}

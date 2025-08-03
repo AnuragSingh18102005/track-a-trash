@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Search, Loader2 } from 'lucide-react'
 
 interface GooglePlacesAutocompleteProps {
-  onPlaceSelect: (place: google.maps.places.PlaceResult) => void
+  onPlaceSelect: (place: any) => void
   placeholder?: string
   className?: string
 }
@@ -28,36 +28,40 @@ export default function GooglePlacesAutocomplete({
     // Wait for Google Maps API to load
     const initAutocomplete = () => {
       if (window.google && window.google.maps && inputRef.current) {
-        autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
-          types: ['establishment', 'geocode'],
-          componentRestrictions: { country: 'in' },
-          fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-        })
+        try {
+          autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+            types: ['establishment', 'geocode'],
+            componentRestrictions: { country: 'in' },
+            fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+          })
 
-        autocompleteRef.current.addListener('place_changed', () => {
-          const place = autocompleteRef.current?.getPlace()
-          if (place && place.geometry && place.geometry.location) {
-            setIsLoading(true)
-            
-            // Get detailed place information
-            const service = new window.google.maps.places.PlacesService(
-              document.createElement('div')
-            )
-            
-            service.getDetails(
-              {
-                placeId: place.place_id!,
-                fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-              },
-              (result, status) => {
-                setIsLoading(false)
-                if (status === window.google.maps.places.PlacesServiceStatus.OK && result) {
-                  onPlaceSelect(result)
+          autocompleteRef.current.addListener('place_changed', () => {
+            const place = autocompleteRef.current?.getPlace()
+            if (place && place.geometry && place.geometry.location) {
+              setIsLoading(true)
+              
+              // Get detailed place information
+              const service = new window.google.maps.places.PlacesService(
+                document.createElement('div')
+              )
+              
+              service.getDetails(
+                {
+                  placeId: place.place_id,
+                  fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                },
+                (result, status) => {
+                  setIsLoading(false)
+                  if (status === window.google.maps.places.PlacesServiceStatus.OK && result) {
+                    onPlaceSelect(result)
+                  }
                 }
-              }
-            )
-          }
-        })
+              )
+            }
+          })
+        } catch (error) {
+          console.error('Error initializing Google Places Autocomplete:', error)
+        }
       }
     }
 
@@ -72,6 +76,12 @@ export default function GooglePlacesAutocomplete({
           initAutocomplete()
         }
       }, 100)
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkGoogleMaps)
+        console.error('Google Maps API failed to load')
+      }, 10000)
     }
 
     return () => {
