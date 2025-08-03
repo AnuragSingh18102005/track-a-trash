@@ -270,9 +270,16 @@ export default function AdminDashboard() {
                 className="px-3 py-2 bg-slate-700/50 border border-gray-600 rounded-lg text-sm focus:border-teal-500 focus:outline-none transition-colors"
               >
                 <option value="all">All Areas</option>
-                <option value="downtown">Downtown</option>
-                <option value="residential">Residential</option>
-                <option value="commercial">Commercial</option>
+                <option value="sector45">Sector 45</option>
+                <option value="greenpark">Green Park</option>
+                <option value="indiranagar">Indiranagar</option>
+                <option value="mgroad">MG Road</option>
+                <option value="koramangala">Koramangala</option>
+                <option value="whitefield">Whitefield</option>
+                <option value="electroniccity">Electronic City</option>
+                <option value="hsrlayout">HSR Layout</option>
+                <option value="jpnagar">JP Nagar</option>
+                <option value="banashankari">Banashankari</option>
               </select>
             </div>
           </div>

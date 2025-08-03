@@ -2,8 +2,8 @@
 
 import type React from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useState } from "react"
-import { MapPin, Camera, CheckCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { MapPin, Camera, CheckCircle, Search, Loader2 } from "lucide-react"
 
 interface ReportPageProps {
   onNavigate?: (page: string) => void
@@ -60,8 +60,76 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
   const [reportId, setReportId] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  
+  // Location search states
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState<any>(null)
 
   const issueTypes = ["Overflowing Bin", "Illegal Dumping", "Recycling Request", "Broken Equipment", "Other"]
+
+  // Location search function using Nominatim API
+  const searchLocation = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([])
+      setShowSearchResults(false)
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1&countrycodes=in`
+      )
+      const data = await response.json()
+      setSearchResults(data)
+      setShowSearchResults(true)
+    } catch (error) {
+      console.error('Error searching location:', error)
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        searchLocation(searchQuery)
+      } else {
+        setSearchResults([])
+        setShowSearchResults(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.location-search-container')) {
+        setShowSearchResults(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleLocationSelect = (location: any) => {
+    setSelectedLocation(location)
+    setFormData(prev => ({
+      ...prev,
+      location: location.display_name
+    }))
+    setSearchQuery(location.display_name)
+    setShowSearchResults(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,10 +156,16 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
         photoUrl = uploadResult.photoUrl
       }
 
-      // Get GPS coordinates from location string or use current location
+      // Get GPS coordinates from selected location or use current location
       let gpsData = null
-      if (formData.location) {
-        // Check if location is already in GPS format
+      if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
+        // Use coordinates from selected location
+        gpsData = {
+          latitude: parseFloat(selectedLocation.lat),
+          longitude: parseFloat(selectedLocation.lon)
+        }
+      } else if (formData.location) {
+        // Fallback: Check if location is already in GPS format
         if (formData.location.includes(',')) {
           const coords = formData.location.split(',').map(coord => parseFloat(coord.trim()))
           if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
@@ -180,6 +254,10 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
       description: "",
       photo: null,
     })
+    setSearchQuery("")
+    setSearchResults([])
+    setShowSearchResults(false)
+    setSelectedLocation(null)
     setShowSuccess(false)
     setShowConfetti(false)
   }
@@ -364,25 +442,77 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                   transition={{ delay: 0.5 }}
                 >
                   <label className="block text-sm font-medium text-gray-300 mb-2">Location *</label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      required
-                      value={formData.location}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-                      className="flex-1 px-4 py-3 bg-slate-700/50 border border-gray-600 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
-                      placeholder="Enter location or use GPS"
-                    />
-                    <motion.button
-                      type="button"
-                      onClick={getLocation}
-                      className="px-4 py-3 bg-teal-500/20 border border-teal-500/40 rounded-lg hover:bg-teal-500/30 transition-colors flex items-center justify-center"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <MapPin size={20} />
-                    </motion.button>
+                  <div className="relative location-search-container">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          required
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full px-4 py-3 pl-10 bg-slate-700/50 border border-gray-600 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
+                          placeholder="Search for a location (e.g., Sector 51, Green Park)"
+                        />
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                          {isSearching ? (
+                            <Loader2 size={16} className="text-gray-400 animate-spin" />
+                          ) : (
+                            <Search size={16} className="text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                      <motion.button
+                        type="button"
+                        onClick={getLocation}
+                        className="px-4 py-3 bg-teal-500/20 border border-teal-500/40 rounded-lg hover:bg-teal-500/30 transition-colors flex items-center justify-center"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <MapPin size={20} />
+                      </motion.button>
+                    </div>
+                    
+                    {/* Search Results Dropdown */}
+                    {showSearchResults && searchResults.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute z-10 w-full mt-2 bg-slate-800/95 backdrop-blur-lg border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      >
+                        {searchResults.map((result, index) => (
+                          <motion.button
+                            key={index}
+                            onClick={() => handleLocationSelect(result)}
+                            className="w-full px-4 py-3 text-left hover:bg-slate-700/50 transition-colors border-b border-gray-700/50 last:border-b-0"
+                            whileHover={{ backgroundColor: 'rgba(51, 65, 85, 0.5)' }}
+                          >
+                            <div className="text-white font-medium text-sm">{result.display_name.split(',')[0]}</div>
+                            <div className="text-gray-400 text-xs mt-1">{result.display_name}</div>
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    )}
                   </div>
+                  
+                  {/* Selected Location Display */}
+                  {selectedLocation && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <MapPin size={16} className="text-emerald-400" />
+                        <div>
+                          <div className="text-emerald-400 text-sm font-medium">Selected Location</div>
+                          <div className="text-gray-300 text-xs">{selectedLocation.display_name}</div>
+                          <div className="text-gray-500 text-xs">
+                            Coordinates: {parseFloat(selectedLocation.lat).toFixed(6)}, {parseFloat(selectedLocation.lon).toFixed(6)}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </motion.div>
 
                 <motion.div

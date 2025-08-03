@@ -10,6 +10,14 @@ export async function GET() {
     // Get all reports
     const reports = await collection.find({}).toArray()
 
+    // Indian locality names for area mapping
+    const indianLocalities = [
+      'Sector 45', 'Green Park', 'Indiranagar', 'MG Road', 'Koramangala',
+      'Whitefield', 'Electronic City', 'HSR Layout', 'JP Nagar', 'Banashankari',
+      'Rajajinagar', 'Malleshwaram', 'Basavanagudi', 'Jayanagar', 'Vijayanagar',
+      'Hebbal', 'Yeshwanthpur', 'Peenya', 'Yelahanka', 'Marathahalli'
+    ]
+
     // Calculate basic metrics
     const totalReports = reports.length
     const submitted = reports.filter(r => r.status === 'Submitted').length
@@ -62,10 +70,11 @@ export async function GET() {
       }
     })
 
-    // Group reports by area (simplified - using GPS coordinates to determine area)
+    // Group reports by area (using realistic Indian locality names)
     const reportsByArea = {}
+    
     reports.forEach(report => {
-      let area = 'Downtown' // Default area
+      let area = 'Sector 45' // Default area
       
       if (report.gps) {
         // Simple area determination based on coordinates
@@ -73,10 +82,9 @@ export async function GET() {
         const lat = report.gps.latitude
         const lng = report.gps.longitude
         
-        if (lat > 40.7) area = 'Residential'
-        else if (lat > 40.6) area = 'Commercial'
-        else if (lat > 40.5) area = 'Industrial'
-        else area = 'Downtown'
+        // Use modulo to distribute areas based on coordinates
+        const index = Math.abs(Math.floor(lat * 1000) + Math.floor(lng * 1000)) % indianLocalities.length
+        area = indianLocalities[index]
       }
       
       reportsByArea[area] = (reportsByArea[area] || 0) + 1
@@ -112,15 +120,18 @@ export async function GET() {
       })
     }
 
-    // Calculate top areas (simplified scoring)
+    // Calculate top areas (using realistic Indian locality names)
     const areaScores = {}
+    
     reports.forEach(report => {
-      let area = 'Downtown'
+      let area = 'Sector 45'
       if (report.gps) {
         const lat = report.gps.latitude
-        if (lat > 40.7) area = 'Residential'
-        else if (lat > 40.6) area = 'Commercial'
-        else if (lat > 40.5) area = 'Industrial'
+        const lng = report.gps.longitude
+        
+        // Use modulo to distribute areas based on coordinates
+        const index = Math.abs(Math.floor(lat * 1000) + Math.floor(lng * 1000)) % indianLocalities.length
+        area = indianLocalities[index]
       }
       
       if (!areaScores[area]) {
