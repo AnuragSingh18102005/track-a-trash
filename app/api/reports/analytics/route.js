@@ -70,15 +70,21 @@ export async function GET() {
       }
     })
 
-    // Group reports by area (using realistic Indian locality names)
+    // Group reports by area (using real location data)
     const reportsByArea = {}
     
     reports.forEach(report => {
-      let area = 'Sector 45' // Default area
+      let area = 'Unknown Area'
       
-      if (report.gps) {
-        // Simple area determination based on coordinates
-        // This is a simplified approach - in a real app you'd have proper area mapping
+      // Use locationDetails if available (from reverse geocoding)
+      if (report.locationDetails && report.locationDetails.area) {
+        area = report.locationDetails.area
+      } else if (report.locationDetails && report.locationDetails.subLocality) {
+        area = report.locationDetails.subLocality
+      } else if (report.locationDetails && report.locationDetails.locality) {
+        area = report.locationDetails.locality
+      } else if (report.gps) {
+        // Fallback: Use coordinates to determine area (simplified mapping)
         const lat = report.gps.latitude
         const lng = report.gps.longitude
         
@@ -120,12 +126,21 @@ export async function GET() {
       })
     }
 
-    // Calculate top areas (using realistic Indian locality names)
+    // Calculate top areas (using real location data)
     const areaScores = {}
     
     reports.forEach(report => {
-      let area = 'Sector 45'
-      if (report.gps) {
+      let area = 'Unknown Area'
+      
+      // Use locationDetails if available (from reverse geocoding)
+      if (report.locationDetails && report.locationDetails.area) {
+        area = report.locationDetails.area
+      } else if (report.locationDetails && report.locationDetails.subLocality) {
+        area = report.locationDetails.subLocality
+      } else if (report.locationDetails && report.locationDetails.locality) {
+        area = report.locationDetails.locality
+      } else if (report.gps) {
+        // Fallback: Use coordinates to determine area (simplified mapping)
         const lat = report.gps.latitude
         const lng = report.gps.longitude
         

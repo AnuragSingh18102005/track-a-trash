@@ -3,7 +3,8 @@
 import type React from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useState, useEffect } from "react"
-import { MapPin, Camera, CheckCircle, Search, Loader2 } from "lucide-react"
+import { MapPin, Camera, CheckCircle, Search, Loader2, Globe } from "lucide-react"
+import GooglePlacesAutocomplete from "./GooglePlacesAutocomplete"
 
 interface ReportPageProps {
   onNavigate?: (page: string) => void
@@ -67,6 +68,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
   const [isSearching, setIsSearching] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<any>(null)
+  const [useGooglePlaces, setUseGooglePlaces] = useState(false)
 
   const issueTypes = ["Overflowing Bin", "Illegal Dumping", "Recycling Request", "Broken Equipment", "Other"]
 
@@ -131,6 +133,24 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
     setShowSearchResults(false)
   }
 
+  const handleGooglePlaceSelect = (place: any) => {
+    if (place.geometry && place.geometry.location) {
+      const location = {
+        display_name: place.formatted_address || place.name || 'Unknown Location',
+        lat: place.geometry.location.lat().toString(),
+        lon: place.geometry.location.lng().toString()
+      }
+      
+      setSelectedLocation(location)
+      setFormData(prev => ({
+        ...prev,
+        location: location.display_name
+      }))
+      setSearchQuery(location.display_name)
+      setUseGooglePlaces(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -156,13 +176,24 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
         photoUrl = uploadResult.photoUrl
       }
 
-      // Get GPS coordinates from selected location or use current location
+      // Get GPS coordinates and location details from selected location or use current location
       let gpsData = null
+      let locationDetails = null
+      
       if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
         // Use coordinates from selected location
         gpsData = {
           latitude: parseFloat(selectedLocation.lat),
           longitude: parseFloat(selectedLocation.lon)
+        }
+        
+        // Extract location details from the selected location
+        const addressParts = selectedLocation.display_name.split(', ')
+        locationDetails = {
+          subLocality: addressParts[0] || 'Unknown',
+          locality: addressParts[1] || addressParts[0] || 'Unknown',
+          formatted_address: selectedLocation.display_name,
+          area: addressParts[0] || 'Unknown' // Use subLocality as area for chart
         }
       } else if (formData.location) {
         // Fallback: Check if location is already in GPS format
@@ -173,6 +204,26 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
               latitude: coords[0],
               longitude: coords[1]
             }
+            
+            // Try to reverse geocode to get location details
+            try {
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}&zoom=18&addressdetails=1`
+              )
+              const data = await response.json()
+              
+              if (data.display_name) {
+                const addressParts = data.display_name.split(', ')
+                locationDetails = {
+                  subLocality: addressParts[0] || 'Unknown',
+                  locality: addressParts[1] || addressParts[0] || 'Unknown',
+                  formatted_address: data.display_name,
+                  area: addressParts[0] || 'Unknown'
+                }
+              }
+            } catch (error) {
+              console.error('Error reverse geocoding coordinates:', error)
+            }
           }
         }
       }
@@ -182,6 +233,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
         title: formData.issueType,
         description: formData.description,
         gps: gpsData,
+        locationDetails: locationDetails,
         photoUrl: photoUrl,
         reporter: formData.name,
         contact: formData.contact
@@ -221,25 +273,58 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
     }
   }
 
-  const getLocation = () => {
+  const getLocation = async () => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setFormData((prev) => ({
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          })
+        })
+
+        const { latitude, longitude } = position.coords
+        
+        // Reverse geocode the GPS coordinates to get address
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+          )
+          const data = await response.json()
+          
+          if (data.display_name) {
+            setSelectedLocation({
+              display_name: data.display_name,
+              lat: latitude.toString(),
+              lon: longitude.toString()
+            })
+            setFormData(prev => ({
+              ...prev,
+              location: data.display_name
+            }))
+            setSearchQuery(data.display_name)
+          } else {
+            // Fallback to coordinates if reverse geocoding fails
+            setFormData(prev => ({
+              ...prev,
+              location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+            }))
+            setSearchQuery(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`)
+          }
+        } catch (geocodeError) {
+          console.error('Error reverse geocoding:', geocodeError)
+          // Fallback to coordinates
+          setFormData(prev => ({
             ...prev,
-            location: `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`,
+            location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
           }))
-        },
-        (error) => {
-          console.error('Error getting location:', error)
-          alert('Unable to get your location. Please enter it manually.')
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
+          setSearchQuery(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`)
         }
-      )
+      } catch (error) {
+        console.error('Error getting location:', error)
+        alert('Unable to get your location. Please enter it manually.')
+      }
     } else {
       alert('Geolocation is not supported by this browser. Please enter your location manually.')
     }
@@ -258,6 +343,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
     setSearchResults([])
     setShowSearchResults(false)
     setSelectedLocation(null)
+    setUseGooglePlaces(false)
     setShowSuccess(false)
     setShowConfetti(false)
   }
@@ -443,24 +529,66 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                 >
                   <label className="block text-sm font-medium text-gray-300 mb-2">Location *</label>
                   <div className="relative location-search-container">
+                    {/* Search Method Toggle */}
+                    <div className="flex gap-2 mb-3">
+                      <motion.button
+                        type="button"
+                        onClick={() => setUseGooglePlaces(false)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          !useGooglePlaces 
+                            ? 'bg-teal-500/20 text-teal-400 border border-teal-500/40' 
+                            : 'bg-slate-700/50 text-gray-400 border border-gray-600'
+                        }`}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Search size={14} className="inline mr-1" />
+                        Nominatim
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        onClick={() => setUseGooglePlaces(true)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          useGooglePlaces 
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40' 
+                            : 'bg-slate-700/50 text-gray-400 border border-gray-600'
+                        }`}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Globe size={14} className="inline mr-1" />
+                        Google Places
+                      </motion.button>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="flex-1 relative">
-                        <input
-                          type="text"
-                          required
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full px-4 py-3 pl-10 bg-slate-700/50 border border-gray-600 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
-                          placeholder="Search for a location (e.g., Sector 51, Green Park)"
-                        />
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          {isSearching ? (
-                            <Loader2 size={16} className="text-gray-400 animate-spin" />
-                          ) : (
-                            <Search size={16} className="text-gray-400" />
-                          )}
+                      {useGooglePlaces ? (
+                        <div className="flex-1">
+                          <GooglePlacesAutocomplete
+                            onPlaceSelect={handleGooglePlaceSelect}
+                            placeholder="Search with Google Places (e.g., Sharda University, Greater Noida)"
+                            className="w-full"
+                          />
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex-1 relative">
+                          <input
+                            type="text"
+                            required
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full px-4 py-3 pl-10 bg-slate-700/50 border border-gray-600 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
+                            placeholder="Search for a location (e.g., Sector 51, Green Park)"
+                          />
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                            {isSearching ? (
+                              <Loader2 size={16} className="text-gray-400 animate-spin" />
+                            ) : (
+                              <Search size={16} className="text-gray-400" />
+                            )}
+                          </div>
+                        </div>
+                      )}
                       <motion.button
                         type="button"
                         onClick={getLocation}

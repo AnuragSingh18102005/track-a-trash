@@ -3,7 +3,7 @@ import clientPromise from '@/lib/mongodb'
 
 export async function POST(request) {
   try {
-    const { title, description, gps, photoUrl, reporter, contact } = await request.json()
+    const { title, description, gps, locationDetails, photoUrl, reporter, contact } = await request.json()
     
     // Validate required fields
     if (!title || !description) {
@@ -42,6 +42,7 @@ export async function POST(request) {
       title,
       description,
       gps: parsedGps,
+      locationDetails: locationDetails || null,
       photoUrl: photoUrl || null,
       reporter: reporter || 'Anonymous',
       contact: contact || 'Not provided',
