@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
 import clientPromise from '@/lib/mongodb'
 
 export async function GET() {
@@ -107,13 +108,15 @@ export async function GET() {
     // Generate timeline data (reports by day for the last 30 days)
     const timelineData = []
     const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29) // Include today, so 30 days total
     
     for (let i = 0; i < 30; i++) {
       const date = new Date(thirtyDaysAgo)
       date.setDate(date.getDate() + i)
-      const dayStart = new Date(date.setHours(0, 0, 0, 0))
-      const dayEnd = new Date(date.setHours(23, 59, 59, 999))
+      
+      // Set to start and end of day in local timezone
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
       
       const dayReports = reports.filter(report => {
         const reportDate = new Date(report.createdAt)
@@ -122,9 +125,172 @@ export async function GET() {
       
       timelineData.push({
         date: date.toISOString().split('T')[0],
+        displayDate: date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        }),
         count: dayReports
       })
     }
+
+    // Waste Category Breakdown - Use the title field which contains the issue type
+    const wasteCategories = {
+      'Overflowing Bin': 0,
+      'Illegal Dumping': 0,
+      'Recycling Request': 0,
+      'Broken Equipment': 0,
+      'Other': 0
+    }
+
+    // Fixed color assignments for categories
+    const categoryColors = {
+      'Overflowing Bin': '#ef4444',    // Red
+      'Illegal Dumping': '#f97316',    // Orange
+      'Recycling Request': '#10b981',  // Green
+      'Broken Equipment': '#3b82f6',   // Blue
+      'Other': '#6b7280'               // Gray
+    }
+
+    reports.forEach(report => {
+      const issueType = report.title || 'Other'
+      if (wasteCategories.hasOwnProperty(issueType)) {
+        wasteCategories[issueType]++
+      } else {
+        wasteCategories['Other']++
+      }
+    })
+
+    const wasteCategoryData = Object.entries(wasteCategories)
+      .filter(([_, count]) => count > 0)
+      .map(([category, count]) => ({
+        name: category,
+        value: count,
+        color: categoryColors[category] || categoryColors['Other']
+      }))
+
+    // Resolution Metrics - Use actual createdAt and resolvedAt fields
+    const resolvedReportsForMetrics = reports.filter(r => r.status === 'Resolved')
+    
+    // Helper function to calculate resolution time in days
+    const calculateResolutionTime = (report) => {
+      const createdAt = new Date(report.createdAt)
+      // Use resolvedAt if available, otherwise use current date for unresolved reports
+      const resolvedAt = report.resolvedAt ? new Date(report.resolvedAt) : new Date()
+      const daysToResolve = Math.floor((resolvedAt - createdAt) / (1000 * 60 * 60 * 24))
+      return Math.max(0, daysToResolve) // Ensure non-negative
+    }
+
+    const onTimeResolved = resolvedReportsForMetrics.filter(report => {
+      const daysToResolve = calculateResolutionTime(report)
+      return daysToResolve <= 7 // Consider resolved within 7 days as "on time"
+    }).length
+
+    // Calculate resolution time trend (compare current week vs previous week)
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    const twoWeeksAgo = new Date()
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+
+    const currentWeekResolved = resolvedReportsForMetrics.filter(report => {
+      const resolvedDate = report.resolvedAt ? new Date(report.resolvedAt) : new Date(report.updatedAt || report.createdAt)
+      return resolvedDate >= oneWeekAgo
+    })
+    
+    const previousWeekResolved = resolvedReportsForMetrics.filter(report => {
+      const resolvedDate = report.resolvedAt ? new Date(report.resolvedAt) : new Date(report.updatedAt || report.createdAt)
+      return resolvedDate >= twoWeeksAgo && resolvedDate < oneWeekAgo
+    })
+
+    const currentWeekAvg = currentWeekResolved.length > 0 
+      ? Math.round(currentWeekResolved.reduce((sum, report) => {
+          return sum + calculateResolutionTime(report)
+        }, 0) / currentWeekResolved.length)
+      : 0
+
+    const previousWeekAvg = previousWeekResolved.length > 0 
+      ? Math.round(previousWeekResolved.reduce((sum, report) => {
+          return sum + calculateResolutionTime(report)
+        }, 0) / previousWeekResolved.length)
+      : 0
+
+    const resolutionTrend = {
+      current: currentWeekAvg,
+      previous: previousWeekAvg,
+      change: previousWeekAvg > 0 ? currentWeekAvg - previousWeekAvg : 0,
+      direction: previousWeekAvg > 0 ? (currentWeekAvg < previousWeekAvg ? 'faster' : 'slower') : 'stable'
+    }
+
+    // Generate resolution time data for the last 7 days (including today)
+    const resolutionTimeData = []
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date()
+      date.setDate(date.getDate() - i)
+      
+      // Set to start and end of day in local timezone
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
+      
+      const dayResolved = resolvedReportsForMetrics.filter(report => {
+        const resolvedDate = report.resolvedAt ? new Date(report.resolvedAt) : new Date(report.updatedAt || report.createdAt)
+        return resolvedDate >= dayStart && resolvedDate <= dayEnd
+      })
+
+      const dayAvgTime = dayResolved.length > 0 
+        ? Math.round(dayResolved.reduce((sum, report) => {
+            return sum + calculateResolutionTime(report)
+          }, 0) / dayResolved.length)
+        : 0
+
+      resolutionTimeData.push({
+        date: date.toISOString().split('T')[0],
+        displayDate: date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        }),
+        avgTime: dayAvgTime
+      })
+    }
+
+    const resolutionMetrics = {
+      averageResolutionTime: resolvedReportsForMetrics.length > 0 
+        ? Math.round(resolvedReportsForMetrics.reduce((sum, report) => {
+            return sum + calculateResolutionTime(report)
+          }, 0) / resolvedReportsForMetrics.length)
+        : 0,
+      onTimePercentage: resolvedReportsForMetrics.length > 0 ? Math.round((onTimeResolved / resolvedReportsForMetrics.length) * 100) : 0,
+      delayedPercentage: resolvedReportsForMetrics.length > 0 ? Math.round(((resolvedReportsForMetrics.length - onTimeResolved) / resolvedReportsForMetrics.length) * 100) : 0,
+      trend: resolutionTrend,
+      weeklyData: resolutionTimeData
+    }
+
+    // Top Reporters Leaderboard
+    const reporterStats = {}
+    reports.forEach(report => {
+      const reporterName = report.reporter || 'Anonymous'
+      if (!reporterStats[reporterName]) {
+        reporterStats[reporterName] = {
+          name: reporterName,
+          reports: 0,
+          resolved: 0
+        }
+      }
+      reporterStats[reporterName].reports++
+      if (report.status === 'Resolved') {
+        reporterStats[reporterName].resolved++
+      }
+    })
+
+    const topReporters = Object.entries(reporterStats)
+      .map(([name, stats]) => ({
+        id: name,
+        name: stats.name,
+        reports: stats.reports,
+        resolved: stats.resolved,
+        points: stats.reports + stats.resolved, // Points = reports submitted + resolved
+        resolutionRate: stats.reports > 0 ? Math.round((stats.resolved / stats.reports) * 100) : 0
+      }))
+      .sort((a, b) => b.points - a.points) // Sort by points instead of just reports
+      .slice(0, 5)
 
     // Calculate top areas (using real location data)
     const areaScores = {}
@@ -186,13 +352,11 @@ export async function GET() {
         activeAreas: Object.keys(areaScores).length
       },
       reportsByType: reportsByTypeArray,
-      reportsByArea: reportsByAreaArray,
       statusDistribution,
       timelineData,
-      topAreas: {
-        cleanest: cleanestAreas,
-        mostReported: mostReportedAreas
-      }
+      wasteCategoryData,
+      resolutionMetrics,
+      topReporters
     })
 
   } catch (error) {

@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
-import { BarChart3, PieChart, TrendingUp, Trophy, MapPin } from "lucide-react"
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { BarChart3, PieChart, TrendingUp, Trophy, MapPin, Users, Clock, CheckCircle, AlertCircle } from "lucide-react"
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 interface AnalyticsData {
   metrics: {
@@ -17,25 +17,43 @@ interface AnalyticsData {
     count: number
     color: string
   }>
-  reportsByArea: Array<{
-    area: string
-    count: number
-    percentage: number
-  }>
   timelineData: Array<{
     date: string
+    displayDate: string
     count: number
   }>
-  topAreas: {
-    cleanest: Array<{
-      name: string
-      score: number
-      trend: string
-    }>
-    mostReported: Array<{
-      name: string
-      reports: number
-      trend: string
+  wasteCategoryData: Array<{
+    name: string
+    value: number
+    color: string
+  }>
+  resolutionMetrics: {
+    averageResolutionTime: number
+    onTimePercentage: number
+    delayedPercentage: number
+  }
+  topReporters: Array<{
+    id: string
+    name: string
+    reports: number
+    resolved: number
+    points: number
+    resolutionRate: number
+  }>
+  resolutionMetrics: {
+    averageResolutionTime: number
+    onTimePercentage: number
+    delayedPercentage: number
+    trend: {
+      current: number
+      previous: number
+      change: number
+      direction: string
+    }
+    weeklyData: Array<{
+      date: string
+      displayDate: string
+      avgTime: number
     }>
   }
 }
@@ -75,6 +93,29 @@ export default function AnalyticsPage() {
       return () => clearTimeout(timer)
     }
   }, [analyticsData])
+
+  // Label renderer for Waste Categories donut chart – shows only percentage inside slices
+  const renderCategoryLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    if (!percent || percent < 0.08) return null
+    const RADIAN = Math.PI / 180
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+    const x = cx + radius * Math.cos(-midAngle * RADIAN)
+    const y = cy + radius * Math.sin(-midAngle * RADIAN)
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#ffffff"
+        textAnchor="middle"
+        dominantBaseline="central"
+        stroke="#0b1220"
+        strokeWidth={3}
+        style={{ fontSize: 12, fontWeight: 700, paintOrder: 'stroke' as any }}
+      >
+        {`${Math.round(percent * 100)}%`}
+      </text>
+    )
+  }
 
   if (loading) {
     return (
@@ -265,7 +306,7 @@ export default function AnalyticsPage() {
             </div>
           </motion.div>
 
-          {/* Reports by Area */}
+          {/* Waste Category Breakdown */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -274,31 +315,52 @@ export default function AnalyticsPage() {
           >
             <h2 className="text-2xl font-bold mb-6 text-teal-400 flex items-center">
               <PieChart className="mr-2" size={24} />
-              Reports by Area
+              Waste Categories
             </h2>
-            <div className="space-y-4">
-              {analyticsData.reportsByArea.map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.6 + index * 0.1 }}
-                  className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg"
-                >
-                  <div>
-                    <h3 className="font-semibold text-white">{item.area}</h3>
-                    <p className="text-gray-400 text-sm">{item.count} reports</p>
+            <div className="h-64">
+              {analyticsData.wasteCategoryData.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-gray-400 text-lg mb-2">No Category Data</div>
+                    <div className="text-gray-500 text-sm">Submit reports to see waste categories</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-teal-400">{item.percentage}%</div>
-                  </div>
-                </motion.div>
-              ))}
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={analyticsData.wasteCategoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      labelLine={false}
+                      label={renderCategoryLabel}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {analyticsData.wasteCategoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        color: '#f1f5f9'
+                      }}
+                    />
+                    <Legend />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </motion.div>
         </div>
 
-        {/* Interactive Map Placeholder */}
+        {/* Reports Over Time Chart */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -306,98 +368,229 @@ export default function AnalyticsPage() {
           className="bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-teal-500/20 mb-8"
         >
           <h2 className="text-2xl font-bold mb-6 text-teal-400 flex items-center">
-            <MapPin className="mr-2" size={24} />
-            City Report Map
+            <TrendingUp className="mr-2" size={24} />
+            Reports Over Time
           </h2>
-          <div className="bg-slate-700/50 rounded-lg h-96 flex items-center justify-center relative overflow-hidden">
-            <div className="text-center">
-              <MapPin className="mx-auto mb-4 text-teal-400" size={48} />
-              <p className="text-gray-300 text-lg">Interactive Map</p>
-              <p className="text-gray-400">Showing all report locations with animated pins</p>
-            </div>
-            {/* Animated pins simulation */}
-            {[...Array(8)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-4 h-4 bg-teal-400 rounded-full"
-                style={{
-                  left: `${20 + Math.random() * 60}%`,
-                  top: `${20 + Math.random() * 60}%`,
-                }}
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: [0.7, 1, 0.7],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Number.POSITIVE_INFINITY,
-                  delay: i * 0.3,
-                }}
-              />
-            ))}
+          <div className="h-96">
+            {analyticsData.timelineData.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-gray-400 text-lg mb-2">No Timeline Data</div>
+                  <div className="text-gray-500 text-sm">Submit reports to see trends over time</div>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analyticsData.timelineData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis 
+                    dataKey="displayDate" 
+                    stroke="#94a3b8"
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      border: '1px solid #475569',
+                      borderRadius: '8px',
+                      color: '#f1f5f9'
+                    }}
+                    labelFormatter={(value) => {
+                      // Find the corresponding data point to get the displayDate
+                      const dataPoint = analyticsData.timelineData.find(item => item.date === value)
+                      if (dataPoint) {
+                        return dataPoint.displayDate
+                      }
+                      // Fallback to formatted date
+                      const date = new Date(value)
+                      return date.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="count" 
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </motion.div>
 
-        {/* Leaderboards */}
+        {/* Resolution Metrics and Top Reporters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-          {/* Top Cleanest Areas */}
+          {/* Resolution Metrics */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6 }}
-            className="bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-emerald-500/20"
+            className="bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-blue-500/20"
           >
-            <h2 className="text-2xl font-bold mb-6 text-emerald-400 flex items-center">
-              <Trophy className="mr-2" size={24} />
-              Cleanest Areas
+            <h2 className="text-2xl font-bold mb-6 text-blue-400 flex items-center">
+              <Clock className="mr-2" size={24} />
+              Resolution Metrics
             </h2>
-            <div className="space-y-4">
-              {analyticsData.topAreas.cleanest.map((area, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 + index * 0.1 }}
-                  className="flex items-center space-x-4 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20"
-                >
-                  <div className="text-2xl">{index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}</div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-white">{area.name}</h3>
-                    <p className="text-emerald-400 text-sm">Score: {area.score}/100</p>
+            <div className="space-y-6">
+              {/* Average Resolution Time with Trend */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="text-center p-6 bg-blue-500/10 rounded-lg border border-blue-500/20"
+              >
+                <div className="text-3xl font-bold text-blue-400 mb-2">
+                  {analyticsData.resolutionMetrics.averageResolutionTime} days
+                </div>
+                <p className="text-gray-300 text-sm mb-2">Average Resolution Time</p>
+                {analyticsData.resolutionMetrics.trend.direction !== 'stable' && (
+                  <div className={`text-xs flex items-center justify-center ${
+                    analyticsData.resolutionMetrics.trend.direction === 'faster' 
+                      ? 'text-emerald-400' 
+                      : 'text-red-400'
+                  }`}>
+                    <span className="mr-1">
+                      {analyticsData.resolutionMetrics.trend.direction === 'faster' ? '↓' : '↑'}
+                    </span>
+                    {analyticsData.resolutionMetrics.trend.direction} than last week
                   </div>
-                  <div className="text-emerald-400 font-semibold">{area.trend}</div>
+                )}
+              </motion.div>
+
+              {/* Resolution Time Sparkline */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
+                className="h-24"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analyticsData.resolutionMetrics.weeklyData}>
+                    <XAxis 
+                      dataKey="displayDate" 
+                      stroke="#94a3b8"
+                      tick={{ fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      stroke="#94a3b8" 
+                      tick={{ fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="avgTime" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={{ fill: '#3b82f6', strokeWidth: 1, r: 3 }}
+                      activeDot={{ r: 4, stroke: '#3b82f6', strokeWidth: 2 }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        color: '#f1f5f9'
+                      }}
+                      labelFormatter={(value) => {
+                        // Find the corresponding data point to get the displayDate
+                        const dataPoint = analyticsData.resolutionMetrics.weeklyData.find(item => item.date === value)
+                        if (dataPoint) {
+                          return dataPoint.displayDate
+                        }
+                        // Fallback to formatted date
+                        const date = new Date(value)
+                        return date.toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })
+                      }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                <p className="text-center text-xs text-gray-400 mt-1">Last 7 days resolution times</p>
+              </motion.div>
+
+              {/* Resolution Rate Breakdown */}
+              <div className="grid grid-cols-2 gap-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.0 }}
+                  className="text-center p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20"
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <CheckCircle className="text-emerald-400 mr-2" size={20} />
+                    <div className="text-2xl font-bold text-emerald-400">
+                      {analyticsData.resolutionMetrics.onTimePercentage}%
+                    </div>
+                  </div>
+                  <p className="text-gray-300 text-xs">Resolved On Time</p>
                 </motion.div>
-              ))}
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.1 }}
+                  className="text-center p-4 bg-red-500/10 rounded-lg border border-red-500/20"
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <AlertCircle className="text-red-400 mr-2" size={20} />
+                    <div className="text-2xl font-bold text-red-400">
+                      {analyticsData.resolutionMetrics.delayedPercentage}%
+                    </div>
+                  </div>
+                  <p className="text-gray-300 text-xs">Resolved Late</p>
+                </motion.div>
+              </div>
             </div>
           </motion.div>
 
-          {/* Most Reported Areas */}
+          {/* Top Reporters Leaderboard */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.7 }}
-            className="bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-red-500/20"
+            className="bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-purple-500/20"
           >
-            <h2 className="text-2xl font-bold mb-6 text-red-400 flex items-center">
-              <TrendingUp className="mr-2" size={24} />
-              Most Reported Areas
+            <h2 className="text-2xl font-bold mb-6 text-purple-400 flex items-center">
+              <Users className="mr-2" size={24} />
+              Top Reporters
             </h2>
             <div className="space-y-4">
-              {analyticsData.topAreas.mostReported.map((area, index) => (
+              {analyticsData.topReporters.map((reporter, index) => (
                 <motion.div
-                  key={index}
+                  key={reporter.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.9 + index * 0.1 }}
-                  className="flex items-center space-x-4 p-4 bg-red-500/10 rounded-lg border border-red-500/20"
+                  className="flex items-center space-x-4 p-4 bg-purple-500/10 rounded-lg border border-purple-500/20"
                 >
-                  <div className="text-2xl">{index === 0 ? "⚠️" : index === 1 ? "📍" : "🔴"}</div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-white">{area.name}</h3>
-                    <p className="text-red-400 text-sm">{area.reports} reports</p>
+                  <div className="text-2xl">
+                    {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}
                   </div>
-                  <div className={`font-semibold ${area.trend.startsWith("-") ? "text-emerald-400" : "text-red-400"}`}>
-                    {area.trend}
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white truncate">{reporter.name}</h3>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <span className="text-purple-400">{reporter.reports} reports</span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-emerald-400">{reporter.resolved} resolved</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-purple-400">{reporter.points}</div>
+                    <div className="text-xs text-gray-400">points</div>
                   </div>
                 </motion.div>
               ))}

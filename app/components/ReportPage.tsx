@@ -202,56 +202,107 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
   }
 
   const getLocation = async () => {
-    if (navigator.geolocation) {
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 60000
-          })
-        })
-
-        const { latitude, longitude } = position.coords
-        
-        // Reverse geocode the GPS coordinates to get address
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-          )
-          const data = await response.json()
-          
-          if (data.display_name) {
-            setSelectedLocation({
-              display_name: data.display_name,
-              lat: latitude.toString(),
-              lon: longitude.toString()
-            })
-            setFormData(prev => ({
-              ...prev,
-              location: data.display_name
-            }))
-          } else {
-            // Fallback to coordinates if reverse geocoding fails
-            setFormData(prev => ({
-              ...prev,
-              location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
-            }))
-          }
-        } catch (geocodeError) {
-          console.error('Error reverse geocoding:', geocodeError)
-          // Fallback to coordinates
-          setFormData(prev => ({
-            ...prev,
-            location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
-          }))
-        }
-      } catch (error) {
-        console.error('Error getting location:', error)
-        alert('Unable to get your location. Please enter it manually.')
-      }
-    } else {
+    if (!('geolocation' in navigator)) {
       alert('Geolocation is not supported by this browser. Please enter your location manually.')
+      return
+    }
+
+    // Prefer a fresh high-accuracy fix using watchPosition, then clear the watcher
+    const getFreshPosition = () => new Promise<GeolocationPosition>((resolve, reject) => {
+      let settled = false
+      const watcherId = navigator.geolocation.watchPosition(
+        (pos) => {
+          // Accept first reasonably accurate fix or any fix after a short delay
+          const accuracy = pos.coords.accuracy || 9999
+          if (!settled && (accuracy <= 100 || Date.now() - start >= 3000)) {
+            settled = true
+            navigator.geolocation.clearWatch(watcherId)
+            resolve(pos)
+          }
+        },
+        (err) => {
+          if (!settled) {
+            settled = true
+            navigator.geolocation.clearWatch(watcherId)
+            reject(err)
+          }
+        },
+        { enableHighAccuracy: true, maximumAge: 0 }
+      )
+
+      const start = Date.now()
+      // Safety timeout (10s)
+      const timeoutId = setTimeout(() => {
+        if (!settled) {
+          settled = true
+          navigator.geolocation.clearWatch(watcherId)
+          reject(new Error('Geolocation timeout'))
+        }
+      }, 10000)
+    })
+
+    let position: GeolocationPosition | null = null
+    try {
+      position = await getFreshPosition()
+    } catch (watchErr) {
+      // Fallback to single-shot getCurrentPosition
+      position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        })
+      })
+    }
+
+    if (!position) {
+      alert('Unable to access your location. Please allow location access or enter it manually.')
+      return
+    }
+
+    const { latitude, longitude } = position.coords
+
+    try {
+      // Reverse geocode the GPS coordinates to get address
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+      )
+      const data = await response.json()
+
+      if (data.display_name) {
+        setSelectedLocation({
+          display_name: data.display_name,
+          lat: latitude.toString(),
+          lon: longitude.toString(),
+        })
+        setFormData((prev) => ({
+          ...prev,
+          location: data.display_name,
+        }))
+      } else {
+        // Fallback to coordinates if reverse geocoding fails
+        setSelectedLocation({
+          display_name: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+          lat: latitude.toString(),
+          lon: longitude.toString(),
+        })
+        setFormData((prev) => ({
+          ...prev,
+          location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+        }))
+      }
+    } catch (geocodeError) {
+      console.error('Error reverse geocoding:', geocodeError)
+      // Fallback to coordinates only
+      setSelectedLocation({
+        display_name: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+        lat: latitude.toString(),
+        lon: longitude.toString(),
+      })
+      setFormData((prev) => ({
+        ...prev,
+        location: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+      }))
     }
   }
 

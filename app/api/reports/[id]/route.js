@@ -27,9 +27,17 @@ export async function PATCH(request, { params }) {
     const db = client.db('waste_tracker')
     const collection = db.collection('reports')
 
+    // Build update fields: always set status and updatedAt; set resolvedAt when resolved
+    const updateFields = { status, updatedAt: new Date() }
+    if (status === 'Resolved') {
+      updateFields.resolvedAt = new Date()
+    } else {
+      updateFields.resolvedAt = null
+    }
+
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: { status } }
+      { $set: updateFields }
     )
 
     if (result.matchedCount === 0) {
