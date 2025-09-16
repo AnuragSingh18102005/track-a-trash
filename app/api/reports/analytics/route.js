@@ -33,12 +33,15 @@ export async function GET() {
       { name: 'Resolved', value: resolved, color: '#10b981' }
     ]
 
-    // Calculate average response time (simplified - using days since creation for resolved reports)
+    // Calculate average resolution time (in days) for resolved reports
     const resolvedReports = reports.filter(r => r.status === 'Resolved')
     const avgResponseTime = resolvedReports.length > 0 
       ? Math.round(resolvedReports.reduce((sum, report) => {
-          const daysSince = Math.floor((new Date() - new Date(report.createdAt)) / (1000 * 60 * 60 * 24))
-          return sum + daysSince
+          const createdAt = new Date(report.createdAt)
+          const resolvedAt = report.resolvedAt ? new Date(report.resolvedAt) : new Date(report.updatedAt || report.createdAt)
+          const isValid = createdAt instanceof Date && !isNaN(createdAt) && resolvedAt instanceof Date && !isNaN(resolvedAt)
+          const days = isValid ? Math.max(0, Math.floor((resolvedAt - createdAt) / (1000 * 60 * 60 * 24))) : 0
+          return sum + days
         }, 0) / resolvedReports.length)
       : 0
 
@@ -120,6 +123,7 @@ export async function GET() {
       
       const dayReports = reports.filter(report => {
         const reportDate = new Date(report.createdAt)
+        if (!(reportDate instanceof Date) || isNaN(reportDate)) return false
         return reportDate >= dayStart && reportDate <= dayEnd
       }).length
       
@@ -174,10 +178,12 @@ export async function GET() {
     // Helper function to calculate resolution time in days
     const calculateResolutionTime = (report) => {
       const createdAt = new Date(report.createdAt)
-      // Use resolvedAt if available, otherwise use current date for unresolved reports
-      const resolvedAt = report.resolvedAt ? new Date(report.resolvedAt) : new Date()
+      const resolvedAt = report.resolvedAt ? new Date(report.resolvedAt) : new Date(report.updatedAt || report.createdAt)
+      if ((!(createdAt instanceof Date) || isNaN(createdAt)) || (!(resolvedAt instanceof Date) || isNaN(resolvedAt))) {
+        return 0
+      }
       const daysToResolve = Math.floor((resolvedAt - createdAt) / (1000 * 60 * 60 * 24))
-      return Math.max(0, daysToResolve) // Ensure non-negative
+      return Math.max(0, daysToResolve)
     }
 
     const onTimeResolved = resolvedReportsForMetrics.filter(report => {
@@ -232,6 +238,7 @@ export async function GET() {
       
       const dayResolved = resolvedReportsForMetrics.filter(report => {
         const resolvedDate = report.resolvedAt ? new Date(report.resolvedAt) : new Date(report.updatedAt || report.createdAt)
+        if (!(resolvedDate instanceof Date) || isNaN(resolvedDate)) return false
         return resolvedDate >= dayStart && resolvedDate <= dayEnd
       })
 

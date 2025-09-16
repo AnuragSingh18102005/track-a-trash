@@ -3,7 +3,7 @@ import clientPromise from '@/lib/mongodb'
 
 export async function POST(request) {
   try {
-    const { title, description, gps, locationDetails, photoUrl, reporter, contact } = await request.json()
+    const { title, description, gps, locationDetails, photoUrl, reporter, contact, priority } = await request.json()
     
     // Validate required fields
     if (!title || !description) {
@@ -38,6 +38,11 @@ export async function POST(request) {
       }
     }
 
+    // Compute ETA from priority
+    const priorityValue = (priority || 'Medium').toLowerCase()
+    const priorityToDays = priorityValue === 'high' ? 1 : priorityValue === 'low' ? 5 : 3
+    const computedETA = `${priorityToDays} day${priorityToDays > 1 ? 's' : ''}`
+
     const report = {
       title,
       description,
@@ -46,6 +51,8 @@ export async function POST(request) {
       photoUrl: photoUrl || null,
       reporter: reporter || 'Anonymous',
       contact: contact || 'Not provided',
+      priority: priority || 'Medium',
+      estimatedResolution: computedETA,
       status: 'Submitted',
       createdAt: new Date()
     }

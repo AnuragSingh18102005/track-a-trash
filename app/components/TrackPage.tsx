@@ -436,10 +436,12 @@ export default function TrackPage() {
                             <p className="text-gray-400 text-sm mb-1">Location</p>
                             <p className="text-white flex items-center gap-2">
                               <MapPin size={16} className="text-teal-400" />
-                              {report.gps && report.gps.latitude && report.gps.longitude ? 
-                                `Lat: ${Number(report.gps.latitude).toFixed(6)}, Lng: ${Number(report.gps.longitude).toFixed(6)}` : 
-                                "Location not specified"
-                              }
+                              {(() => {
+                                const details = report.locationDetails || {}
+                                const name = details.formatted_address || details.subLocality || details.locality || details.area
+                                if (name && typeof name === 'string') return name
+                                return 'Location not specified'
+                              })()}
                             </p>
                           </div>
                         </div>
@@ -577,10 +579,12 @@ const ReportCard = ({ report }: { report: any }) => {
             <p className="text-gray-400 text-sm mb-1">Location</p>
             <p className="text-white flex items-center gap-2">
               <MapPin size={16} className="text-teal-400" />
-              {report.gps && report.gps.latitude && report.gps.longitude ? 
-                `Lat: ${Number(report.gps.latitude).toFixed(6)}, Lng: ${Number(report.gps.longitude).toFixed(6)}` : 
-                "Location not specified"
-              }
+              {(() => {
+                const details = report.locationDetails || {}
+                const name = details.formatted_address || details.subLocality || details.locality || details.area
+                if (name && typeof name === 'string') return name
+                return 'Location not specified'
+              })()}
             </p>
           </div>
         </div>

@@ -300,13 +300,24 @@ export default function ReportModal({ isOpen, onClose, report, onStatusChange }:
                 >
                   <div>
                     <h4 className="text-sm font-medium text-gray-400 mb-1">Priority Level</h4>
-                    <span className="inline-block px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm border border-orange-500/40">
-                      {report.priority || "Medium"}
+                    <span className="inline-block px-3 py-1 rounded-full text-sm border"
+                      style={{
+                        borderColor: 'rgba(251, 191, 36, 0.4)'
+                      }}
+                      className={`
+                        ${(
+                          (report.priority || '').toLowerCase() === 'high' ? 'bg-red-500/20 text-red-400 border-red-500/40' :
+                          (report.priority || '').toLowerCase() === 'low' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' :
+                          'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                        )}
+                      `}
+                    >
+                      {report.priority || '—'}
                     </span>
                   </div>
                   <div className="text-right">
                     <h4 className="text-sm font-medium text-gray-400 mb-1">Estimated Resolution</h4>
-                    <p className="text-white text-sm">{report.estimatedResolution || "2-3 business days"}</p>
+                    <p className="text-white text-sm">{report.estimatedResolution || report.eta || '—'}</p>
                   </div>
                 </motion.div>
               </div>

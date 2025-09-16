@@ -56,6 +56,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
     issueType: "",
     description: "",
     photo: null as File | null,
+    priority: "Medium",
   })
   const [showSuccess, setShowSuccess] = useState(false)
   const [reportId, setReportId] = useState("")
@@ -66,10 +67,19 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
   const [selectedLocation, setSelectedLocation] = useState<any>(null)
 
   const issueTypes = ["Overflowing Bin", "Illegal Dumping", "Recycling Request", "Broken Equipment", "Other"]
+  const priorityOptions = ["Low", "Medium", "High"]
 
 
 
-  const handleLocationSelect = (location: any) => {
+  const handleLocationSelect = (location: any | null) => {
+    if (!location) {
+      setSelectedLocation(null)
+      setFormData(prev => ({
+        ...prev,
+        location: ""
+      }))
+      return
+    }
     setSelectedLocation(location)
     setFormData(prev => ({
       ...prev,
@@ -164,7 +174,8 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
         locationDetails: locationDetails,
         photoUrl: photoUrl,
         reporter: formData.name,
-        contact: formData.contact
+        contact: formData.contact,
+        priority: formData.priority
       }
 
       const response = await fetch('/api/reports', {
@@ -314,6 +325,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
       issueType: "",
       description: "",
       photo: null,
+      priority: "Medium",
     })
     setSelectedLocation(null)
     setShowSuccess(false)
@@ -505,7 +517,7 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                       <div className="flex-1">
                         <LocationSearch
                           onLocationSelect={handleLocationSelect}
-                          placeholder="Search for any location (e.g., Sharda University, Sector 51, MG Road)"
+                          placeholder="Search for location"
                           className="w-full"
                         />
                       </div>
@@ -610,6 +622,26 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
                     {formData.photo && <p className="mt-2 text-sm text-teal-400">{formData.photo.name}</p>}
                   </motion.div>
                 </motion.div>
+
+                {/* Priority */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-6">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.85 }}
+                  >
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Priority</label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, priority: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-gray-600 rounded-lg focus:border-teal-500 focus:outline-none transition-colors"
+                    >
+                      {priorityOptions.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </motion.div>
+                </div>
 
                 <motion.button
                   type="submit"

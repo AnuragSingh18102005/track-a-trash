@@ -396,21 +396,8 @@ export default function AnalyticsPage() {
                       borderRadius: '8px',
                       color: '#f1f5f9'
                     }}
-                    labelFormatter={(value) => {
-                      // Find the corresponding data point to get the displayDate
-                      const dataPoint = analyticsData.timelineData.find(item => item.date === value)
-                      if (dataPoint) {
-                        return dataPoint.displayDate
-                      }
-                      // Fallback to formatted date
-                      const date = new Date(value)
-                      return date.toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })
-                    }}
+                    // XAxis uses displayDate, so echo the label directly to avoid browser Date parsing quirks
+                    labelFormatter={(label) => String(label)}
                   />
                   <Line 
                     type="monotone" 
@@ -502,20 +489,8 @@ export default function AnalyticsPage() {
                         borderRadius: '8px',
                         color: '#f1f5f9'
                       }}
-                      labelFormatter={(value) => {
-                        // Find the corresponding data point to get the displayDate
-                        const dataPoint = analyticsData.resolutionMetrics.weeklyData.find(item => item.date === value)
-                        if (dataPoint) {
-                          return dataPoint.displayDate
-                        }
-                        // Fallback to formatted date
-                        const date = new Date(value)
-                        return date.toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })
-                      }}
+                      // XAxis uses displayDate, so display the label unmodified
+                      labelFormatter={(label) => String(label)}
                     />
                   </LineChart>
                 </ResponsiveContainer>
