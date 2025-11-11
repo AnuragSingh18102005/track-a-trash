@@ -2,7 +2,7 @@
 
 ## Authentication & Authorization
 
-- Uses NextAuth.js with a credentials provider and MongoDB adapter. Users in the `users` collection must include `email`, `password` (bcrypt hash), `name`, and `role` (`user` or `admin`).
+- Uses NextAuth.js with a credentials provider and MongoDB adapter. Users in the `users` collection must include `email`, `password` (bcryptjs hash), `name`, and `role` (`user` or `admin`).
 - Set required environment variables in a local `.env` file (never commit secrets). Provide teammates with a sanitized `.env.example` that includes:
   ```
   MONGODB_URI=mongodb+srv://username:password@cluster0.example.mongodb.net/waste_tracker

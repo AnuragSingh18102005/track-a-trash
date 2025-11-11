@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { MongoClient } from 'mongodb'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 
 const uri = process.env.MONGODB_URI
 
