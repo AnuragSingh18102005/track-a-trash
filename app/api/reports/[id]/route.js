@@ -1,9 +1,27 @@
 import { NextResponse } from 'next/server'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
+async function requireAdminSession() {
+  const session = await getServerSession(authOptions)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (session.user?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  return null
+}
 
 export async function PATCH(request, { params }) {
   try {
+    const authError = await requireAdminSession()
+    if (authError) {
+      return authError
+    }
+
     const { id } = params
     const { status } = await request.json()
 
@@ -63,6 +81,11 @@ export async function PATCH(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    const authError = await requireAdminSession()
+    if (authError) {
+      return authError
+    }
+
     const { id } = params
 
     // Validate ObjectId format

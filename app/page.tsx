@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useSession } from "next-auth/react"
 import Navigation from "./components/Navigation"
 import HomePage from "./components/HomePage"
 import ReportPage from "./components/ReportPage"
@@ -12,6 +13,9 @@ import AnalyticsPage from "./components/AnalyticsPage"
 import FloatingParticles from "./components/FloatingParticles"
 
 export default function App() {
+  const { data: session } = useSession()
+  const isAdmin = useMemo(() => session?.user?.role === 'admin', [session])
+
   // Start with a deterministic value for SSR to avoid hydration mismatches
   const [currentPage, setCurrentPage] = useState("home")
   const [isHydrated, setIsHydrated] = useState(false)
@@ -81,7 +85,7 @@ export default function App() {
       case "track":
         return <TrackPage />
       case "admin":
-        return <AdminDashboard />
+        return isAdmin ? <AdminDashboard /> : <HomePage onNavigate={setCurrentPage} />
       case "analytics":
         return <AnalyticsPage />
       default:
