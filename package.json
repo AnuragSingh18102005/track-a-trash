@@ -6,7 +6,9 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "update:admin": "node scripts/update-admin.mjs"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.1",
