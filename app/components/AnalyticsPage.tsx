@@ -387,6 +387,10 @@ export default function AnalyticsPage() {
                     dataKey="displayDate" 
                     stroke="#94a3b8"
                     tick={{ fontSize: 12 }}
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
                   />
                   <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} />
                   <Tooltip 
